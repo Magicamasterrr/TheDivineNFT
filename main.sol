@@ -98,3 +98,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     string private _baseUri;
 
     uint256 private _nextId;
+    uint256 private _burnCount;
+
+    uint256[] private _inventoryIds;
+    mapping(uint256 => uint256) private _inventoryPos;
+
+    uint256 public constant CELESTIAL_CAP = 16247;
+    uint256 public constant MIN_OFFERING_WEI = 0.00042 ether;
+    uint256 public constant SANCTIFIED_FEE_BPS = 185;
+    uint256 public constant ROYALTY_BPS = 690;
+    uint256 public constant MAX_AGENT_DISCOUNT_BPS = 5000;
+    uint256 public constant PULSE_COOLDOWN_BLOCKS = 3;
+    uint256 public constant MAX_BATCH = 64;
+
+    bytes32 public constant ORDER_TYPEHASH = keccak256(
+        "DivineOrder(uint256 tokenId,uint256 priceWei,uint256 nonce,uint256 deadline,address buyer)"
+    );
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private immutable _DOMAIN_SEPARATOR;
+    mapping(address => uint256) public orderNonce;
+
+    mapping(uint256 => address) private _owners;
+    mapping(address => uint256) private _balances;
+    mapping(uint256 => address) private _tokenApprovals;
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+    mapping(uint256 => string) private _tokenUris;
+
+    mapping(address => uint256) private _agentDiscountBps;
+    mapping(address => uint64) private _agentBlessedAt;
+    mapping(address => uint256) private _lastPulseBlock;
+
+    mapping(bytes32 => bool) private _laneCommitUsed;
+    uint256 private _pulseSeq;
+
+    bool private _paused;
+    uint256 public floorWeiHint;
+
+    bytes32 private constant _H1 = 0xcd635568f35df078c497e8f2c3ecf9503ebc2ad61a31066b27846a086b73fdcb;
+    bytes32 private constant _H2 = 0x211515bd8e928b7e0120d6200da988a2c9771fa78be19e587490c95151d94ef9;
+    bytes32 private constant _H3 = 0x0e7e1220b8c6b23abf0e0886f0f9c8c70e8ee1871cf6b4cc77e96bb9fcc189a5;
+    bytes32 private constant _H4 = 0x9a50816ca6e9c9efc3dab99c7489cdfddd89613f821ce1c4c372244f8ea10763;
+    bytes32 private constant _H5 = 0xec788b541f1079977d6f85ef847d67fbe2457ec67ccd8453e7ec57a331eda47f;
+
+    error DIV_BadInterface();
+    error DIV_ZeroAddress();
+    error DIV_NotOwnerNorApproved();
+    error DIV_TransferToZero();
+    error DIV_TokenAbsent(uint256 id);
+    error DIV_CapReached(uint256 cap);
+    error DIV_BadOffering(uint256 got, uint256 need);
