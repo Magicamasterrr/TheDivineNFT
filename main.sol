@@ -548,3 +548,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
 
     function blessAgent(address agent, uint256 discountBps) external onlyADDRESS_C {
         if (agent == address(0)) revert DIV_ZeroAddress();
+        if (discountBps > MAX_AGENT_DISCOUNT_BPS) revert DIV_BadDiscount(discountBps);
+        _agentDiscountBps[agent] = discountBps;
+        _agentBlessedAt[agent] = uint64(block.timestamp);
+        emit AgentBlessed(agent, discountBps, block.timestamp);
+    }
+
+    function stripAgent(address agent) external onlyADDRESS_C {
+        _agentDiscountBps[agent] = 0;
+        _agentBlessedAt[agent] = 0;
+        emit AgentStripped(agent);
+    }
+
+    function emitRelayPulse(uint256 tokenId, bytes32 tag, bytes32 payload) external whenNotPaused {
+        address owner = ownerOf(tokenId);
+        if (owner != msg.sender && !isApprovedForAll(owner, msg.sender) && getApproved(tokenId) != msg.sender) {
+            revert DIV_NotTokenOwner(tokenId, msg.sender);
+        }
+        if (block.number < _lastPulseBlock[msg.sender] + PULSE_COOLDOWN_BLOCKS) revert DIV_PulseSpam();
+        _lastPulseBlock[msg.sender] = block.number;
+        unchecked {
+            _pulseSeq++;
+        }
+        emit RelayPulse(msg.sender, tokenId, tag, payload, _pulseSeq);
+    }
+
+    function sealLaneCommit(bytes32 commit) external whenNotPaused {
+        if (_laneCommitUsed[commit]) revert DIV_LaneReplay();
+        _laneCommitUsed[commit] = true;
+        emit LaneCommitSealed(msg.sender, commit, block.timestamp);
+    }
+
+    function sanctifiedBuy(
+        uint256 tokenId,
+        uint256 priceWei,
+        uint256 deadline,
+        address buyer,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable nonReentrant whenNotPaused {
+        if (block.timestamp > deadline) revert DIV_OrderExpired(deadline, block.timestamp);
+        address seller = ownerOf(tokenId);
+        if (seller == buyer) revert DIV_BuyerMismatch(buyer, buyer);
+        uint256 nonce = orderNonce[seller];
+        bytes32 structHash = keccak256(abi.encode(ORDER_TYPEHASH, tokenId, priceWei, nonce, deadline, buyer));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
+        address signer = ECDSADivine.recover(digest, v, r, s);
+        if (signer != seller) revert DIV_NotTokenOwner(tokenId, signer);
+        if (msg.sender != buyer) revert DIV_BuyerMismatch(buyer, msg.sender);
+        if (msg.value != priceWei) revert DIV_PriceMismatch(priceWei, msg.value);
