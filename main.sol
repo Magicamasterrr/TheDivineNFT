@@ -298,3 +298,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     }
 
     function getApproved(uint256 tokenId) public view override returns (address) {
+        _requireMinted(tokenId);
+        return _tokenApprovals[tokenId];
+    }
+
+    function isApprovedForAll(address owner, address operator) public view override returns (bool) {
+        return _operatorApprovals[owner][operator];
+    }
+
+    function approve(address to, uint256 tokenId) public override whenNotPaused {
+        address owner = ownerOf(tokenId);
+        if (to == owner) revert DIV_ApproveToOwner();
+        if (msg.sender != owner && !isApprovedForAll(owner, msg.sender)) revert DIV_ApproveCallerNotOwner();
+        _tokenApprovals[tokenId] = to;
+        emit Approval(owner, to, tokenId);
+    }
+
+    function setApprovalForAll(address operator, bool approved) public override whenNotPaused {
+        if (operator == msg.sender) revert DIV_ZeroAddress();
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        _transfer(from, to, tokenId, false, "");
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        safeTransferFrom(from, to, tokenId, "");
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+        public
+        override
+        whenNotPaused
+    {
+        _transfer(from, to, tokenId, true, data);
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        _requireMinted(tokenId);
+        string memory explicitUri = _tokenUris[tokenId];
+        if (bytes(explicitUri).length > 0) {
+            return explicitUri;
+        }
+        return string(abi.encodePacked(_baseUri, _toString(tokenId)));
+    }
+
+    function royaltyInfo(uint256 tokenId, uint256 salePrice)
+        external
+        view
