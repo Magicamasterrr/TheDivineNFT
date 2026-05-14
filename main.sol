@@ -148,3 +148,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     error DIV_TokenAbsent(uint256 id);
     error DIV_CapReached(uint256 cap);
     error DIV_BadOffering(uint256 got, uint256 need);
+    error DIV_Paused();
+    error DIV_NotADDRESS_A();
+    error DIV_NotADDRESS_C();
+    error DIV_NotTokenOwner(uint256 id, address caller);
+    error DIV_ApproveToOwner();
+    error DIV_ApproveCallerNotOwner();
+    error DIV_InvalidReceiver(address to);
+    error DIV_SafeTransferRejected();
+    error DIV_BadNonce(uint256 want, uint256 got);
+    error DIV_OrderExpired(uint256 deadline, uint256 nowTs);
+    error DIV_PriceMismatch(uint256 want, uint256 got);
+    error DIV_BuyerMismatch(address want, address got);
+    error DIV_LaneReplay();
+    error DIV_PulseSpam();
+    error DIV_BadDiscount(uint256 bps);
+    error DIV_StringTooLong();
+    error DIV_NoEthUnexpected();
+    error DIV_SliceRange(uint256 start, uint256 count, uint256 supply);
+    error DIV_BatchTooLarge(uint256 got, uint256 maxAllowed);
+
+    event CelestialMint(address indexed to, uint256 indexed tokenId, bytes32 indexed haloTag, uint256 offering);
+    event GlyphBurned(address indexed from, uint256 indexed tokenId, bytes32 indexed ashTag);
+    event BaseUriRotated(string newBase);
+    event PauseFlipped(bool paused);
+    event FloorHintUpdated(uint256 weiHint);
+    event AgentBlessed(address indexed agent, uint256 discountBps, uint256 whenTs);
+    event AgentStripped(address indexed agent);
+    event SanctifiedSale(
+        uint256 indexed tokenId,
+        address indexed seller,
+        address indexed buyer,
+        uint256 grossWei,
+        uint256 feeWei,
+        bytes32 pulseTag
+    );
+    event RelayPulse(address indexed emitter, uint256 indexed tokenId, bytes32 tag, bytes32 payload, uint256 seq);
+    event LaneCommitSealed(address indexed relayer, bytes32 commit, uint256 whenTs);
+    event EthSwept(address indexed to, uint256 amount);
+    event LaneSignal(address indexed signer, bytes32 blob, uint256 whenTs);
+
+    modifier whenNotPaused() {
+        if (_paused) revert DIV_Paused();
+        _;
+    }
+
+    modifier onlyADDRESS_A() {
+        if (msg.sender != ADDRESS_A) revert DIV_NotADDRESS_A();
+        _;
+    }
+
