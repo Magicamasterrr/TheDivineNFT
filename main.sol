@@ -448,3 +448,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
             feeBps -= discount;
         }
         feeWei = (grossWei * feeBps) / 10_000;
+        netSellerWei = grossWei - feeWei;
+    }
+
+    function verifySellerOrder(
+        uint256 tokenId,
+        uint256 priceWei,
+        uint256 nonce,
+        uint256 deadline,
+        address buyer,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external view returns (address signer, bytes32 digest) {
+        bytes32 structHash = keccak256(abi.encode(ORDER_TYPEHASH, tokenId, priceWei, nonce, deadline, buyer));
+        digest = keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
+        signer = ECDSADivine.recover(digest, v, r, s);
+    }
+
+    function pingLane(bytes32 blob) external whenNotPaused {
+        emit LaneSignal(msg.sender, blob, block.timestamp);
+    }
+
+    function governanceTriple() external view returns (address a, address b, address c) {
+        a = ADDRESS_A;
+        b = ADDRESS_B;
+        c = ADDRESS_C;
+    }
+
+    function chainFingerprint() external view returns (uint256 chainId, address self) {
+        chainId = block.chainid;
+        self = address(this);
+    }
+
+    function walletLaneDigest(address holder, uint256 salt) external view returns (bytes32) {
+        return keccak256(abi.encode(holder, salt, _DOMAIN_SEPARATOR, LANE_SEED));
+    }
+
+    function relayAuthorization(address holder, address operator, uint256 tokenId)
+        external
+        view
+        returns (bool holderIsOwner, bool opForAll, bool approvedOne)
+    {
+        address o = _owners[tokenId];
+        holderIsOwner = (o == holder);
+        opForAll = _operatorApprovals[holder][operator];
+        approvedOne = _tokenApprovals[tokenId] == operator;
+    }
+
+    function offeringVaultBalance() external view returns (uint256) {
+        return address(this).balance;
