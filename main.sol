@@ -248,3 +248,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     function totalMinted() external view returns (uint256) {
         return _nextId - 1;
     }
+
+    function totalBurned() external view returns (uint256) {
+        return _burnCount;
+    }
+
+    function circulatingSupply() external view returns (uint256) {
+        return (_nextId - 1) - _burnCount;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return _inventoryIds.length;
+    }
+
+    function tokenByIndex(uint256 index) external view returns (uint256) {
+        require(index < _inventoryIds.length, "DIV_BAD_INDEX");
+        return _inventoryIds[index];
+    }
+
+    function baseURI() external view returns (string memory) {
+        return _baseUri;
+    }
+
+    function agentDiscountBps(address agent) external view returns (uint256) {
+        return _agentDiscountBps[agent];
+    }
+
+    function agentBlessedAt(address agent) external view returns (uint256) {
+        return _agentBlessedAt[agent];
+    }
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _DOMAIN_SEPARATOR;
+    }
+
+    function pulseSequence() external view returns (uint256) {
+        return _pulseSeq;
+    }
+
+    function balanceOf(address owner) external view override returns (uint256) {
+        if (owner == address(0)) revert DIV_ZeroAddress();
+        return _balances[owner];
+    }
+
+    function ownerOf(uint256 tokenId) public view override returns (address) {
+        address o = _owners[tokenId];
+        if (o == address(0)) revert DIV_TokenAbsent(tokenId);
+        return o;
+    }
+
+    function getApproved(uint256 tokenId) public view override returns (address) {
