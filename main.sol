@@ -348,3 +348,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     function royaltyInfo(uint256 tokenId, uint256 salePrice)
         external
         view
+        override
+        returns (address receiver, uint256 royaltyAmount)
+    {
+        _requireMinted(tokenId);
+        receiver = ADDRESS_B;
+        royaltyAmount = (salePrice * ROYALTY_BPS) / 10_000;
+    }
+
+    function previewSanctifiedFeeWei(address buyerAgent, uint256 grossWei) external view returns (uint256) {
+        uint256 feeBps = SANCTIFIED_FEE_BPS;
+        uint256 discount = _agentDiscountBps[buyerAgent];
+        if (discount > feeBps) {
+            return 0;
+        }
+        feeBps -= discount;
+        return (grossWei * feeBps) / 10_000;
+    }
+
+    function previewRoyaltyWei(uint256 tokenId, uint256 salePrice) external view returns (uint256) {
+        _requireMinted(tokenId);
+        return (salePrice * ROYALTY_BPS) / 10_000;
+    }
+
+    function laneEntropyMix(bytes32 tag) external view returns (bytes32) {
+        return keccak256(abi.encode(tag, _H1, _H2, LANE_SEED, GENESIS_SALT));
+    }
+
+    function interfaceTags()
+        external
+        pure
+        returns (bytes4 erc165, bytes4 erc721, bytes4 erc721Meta, bytes4 erc2981)
+    {
+        erc165 = _IFACE_ERC165;
+        erc721 = _IFACE_ERC721;
+        erc721Meta = _IFACE_ERC721_METADATA;
+        erc2981 = _IFACE_ERC2981;
+    }
+
+    function batchOwnerOf(uint256[] calldata ids) external view returns (address[] memory out) {
+        if (ids.length > MAX_BATCH) revert DIV_BatchTooLarge(ids.length, MAX_BATCH);
+        out = new address[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            address o = _owners[id];
+            if (o == address(0)) revert DIV_TokenAbsent(id);
+            out[i] = o;
+        }
+    }
+
+    function batchBalanceOf(address[] calldata addrs) external view returns (uint256[] memory out) {
