@@ -48,3 +48,53 @@ library AddressDivineLib {
     function sendValue(address payable recipient, uint256 amount) internal {
         (bool ok, ) = recipient.call{value: amount}("");
         require(ok, "DIV_ETH_SEND");
+    }
+}
+
+library ECDSADivine {
+    function recover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) internal pure returns (address) {
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "DIV_S_HIGH"
+        );
+        address signer = ecrecover(hash, v, r, s);
+        require(signer != address(0), "DIV_BAD_SIG");
+        return signer;
+    }
+}
+
+abstract contract ReentrancyGuardDivine {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _divStatus;
+
+    constructor() {
+        _divStatus = _NOT_ENTERED;
+    }
+
+    modifier nonReentrant() {
+        require(_divStatus != _ENTERED, "DIV_REENTRY");
+        _divStatus = _ENTERED;
+        _;
+        _divStatus = _NOT_ENTERED;
+    }
+}
+
+contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, ReentrancyGuardDivine {
+    bytes4 private constant _IFACE_ERC165 = 0x01ffc9a7;
+    bytes4 private constant _IFACE_ERC721 = 0x80ac58cd;
+    bytes4 private constant _IFACE_ERC721_METADATA = 0x5b5e139f;
+    bytes4 private constant _IFACE_ERC2981 = 0x2a55205a;
+
+    address public immutable ADDRESS_A;
+    address public immutable ADDRESS_B;
+    address public immutable ADDRESS_C;
+
+    uint256 public immutable GENESIS_SALT;
+    uint256 public immutable LANE_SEED;
+
+    string private _collectionName;
+    string private _collectionSymbol;
+    string private _baseUri;
+
+    uint256 private _nextId;
