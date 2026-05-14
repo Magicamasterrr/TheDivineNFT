@@ -398,3 +398,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
     }
 
     function batchBalanceOf(address[] calldata addrs) external view returns (uint256[] memory out) {
+        if (addrs.length > MAX_BATCH) revert DIV_BatchTooLarge(addrs.length, MAX_BATCH);
+        out = new uint256[](addrs.length);
+        for (uint256 i = 0; i < addrs.length; i++) {
+            address a = addrs[i];
+            if (a == address(0)) revert DIV_ZeroAddress();
+            out[i] = _balances[a];
+        }
+    }
+
+    function batchTokenURI(uint256[] calldata ids) external view returns (string[] memory out) {
+        if (ids.length > MAX_BATCH) revert DIV_BatchTooLarge(ids.length, MAX_BATCH);
+        out = new string[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            out[i] = tokenURI(ids[i]);
+        }
+    }
+
+    function exportInventorySlice(uint256 start, uint256 count) external view returns (uint256[] memory slice) {
+        if (count > MAX_BATCH) revert DIV_BatchTooLarge(count, MAX_BATCH);
+        uint256 supply = _inventoryIds.length;
+        if (start > supply) revert DIV_SliceRange(start, count, supply);
+        uint256 end = start + count;
+        if (end > supply) revert DIV_SliceRange(start, count, supply);
+        slice = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            slice[i] = _inventoryIds[start + i];
+        }
+    }
+
+    function isLaneCommitConsumed(bytes32 commit) external view returns (bool) {
+        return _laneCommitUsed[commit];
+    }
+
+    function currentSellerNonce(address seller) external view returns (uint256) {
+        return orderNonce[seller];
+    }
+
+    function quoteSanctifiedSettlement(address buyerAgent, uint256 grossWei)
+        external
+        view
+        returns (uint256 feeWei, uint256 netSellerWei)
+    {
+        uint256 feeBps = SANCTIFIED_FEE_BPS;
+        uint256 discount = _agentDiscountBps[buyerAgent];
+        if (discount > feeBps) {
+            feeBps = 0;
+        } else {
+            feeBps -= discount;
+        }
+        feeWei = (grossWei * feeBps) / 10_000;
