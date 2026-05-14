@@ -498,3 +498,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
 
     function offeringVaultBalance() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    function haloEntropy(bytes32 tag, uint256 salt) external view returns (bytes32) {
+        return keccak256(abi.encode(tag, salt, _H4, _H5, GENESIS_SALT));
+    }
+
+    function mintCelestial(bytes32 haloTag) external payable nonReentrant whenNotPaused returns (uint256 id) {
+        if (_nextId > CELESTIAL_CAP) revert DIV_CapReached(CELESTIAL_CAP);
+        if (msg.value < MIN_OFFERING_WEI) revert DIV_BadOffering(msg.value, MIN_OFFERING_WEI);
+        id = _nextId++;
+        _safeMint(msg.sender, id);
+        _pushInventory(id);
+        emit CelestialMint(msg.sender, id, haloTag, msg.value);
+        _touchEntropy(haloTag);
+    }
+
+    function burnGlyph(uint256 tokenId, bytes32 ashTag) external nonReentrant whenNotPaused {
+        address owner = ownerOf(tokenId);
+        if (owner != msg.sender && !isApprovedForAll(owner, msg.sender) && getApproved(tokenId) != msg.sender) {
+            revert DIV_NotTokenOwner(tokenId, msg.sender);
+        }
+        _popInventory(tokenId);
+        _burn(tokenId);
+        _burnCount++;
+        emit GlyphBurned(owner, tokenId, ashTag);
+    }
+
+    function setTokenURI(uint256 tokenId, string calldata uri_) external onlyADDRESS_A {
+        _requireMinted(tokenId);
+        if (bytes(uri_).length > 2048) revert DIV_StringTooLong();
+        _tokenUris[tokenId] = uri_;
+    }
+
+    function setBaseURI(string calldata newBase) external onlyADDRESS_A {
+        _baseUri = newBase;
+        emit BaseUriRotated(newBase);
+    }
+
+    function setPaused(bool p) external onlyADDRESS_A {
+        _paused = p;
+        emit PauseFlipped(p);
+    }
+
+    function setFloorWeiHint(uint256 w) external onlyADDRESS_A {
+        floorWeiHint = w;
+        emit FloorHintUpdated(w);
+    }
+
+    function blessAgent(address agent, uint256 discountBps) external onlyADDRESS_C {
+        if (agent == address(0)) revert DIV_ZeroAddress();
