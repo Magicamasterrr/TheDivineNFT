@@ -198,3 +198,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
         _;
     }
 
+    modifier onlyADDRESS_C() {
+        if (msg.sender != ADDRESS_C) revert DIV_NotADDRESS_C();
+        _;
+    }
+
+    constructor() {
+        ADDRESS_A = 0xB895Ff11816228Aa91cF1a361Ae598e40B9Ab386;
+        ADDRESS_B = 0x8E1C317575E0C03F312CffeDca5B5c6757e51E08;
+        ADDRESS_C = 0x0612167B6870A7138eB78B5a02d5928c90C48C3f;
+        GENESIS_SALT = 0x000000000000000000000000000000000000000000000000000000009c4f2a11d7;
+        LANE_SEED = 0x0000000000000000000000000000000000000000000000000000000041e8b903c1;
+        _collectionName = "TheDivineNFT";
+        _collectionSymbol = "DIVN";
+        _baseUri = "https://glazocode.dev/divine/meta/v1/";
+        _nextId = 1;
+        _paused = false;
+        _DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                DOMAIN_TYPEHASH,
+                keccak256(bytes(_collectionName)),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return
+            interfaceId == _IFACE_ERC165 ||
+            interfaceId == _IFACE_ERC721 ||
+            interfaceId == _IFACE_ERC721_METADATA ||
+            interfaceId == _IFACE_ERC2981;
+    }
+
+    function name() external view override returns (string memory) {
+        return _collectionName;
+    }
+
+    function symbol() external view override returns (string memory) {
+        return _collectionSymbol;
+    }
+
+    function paused() external view returns (bool) {
+        return _paused;
+    }
+
+    function totalMinted() external view returns (uint256) {
+        return _nextId - 1;
+    }
