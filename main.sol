@@ -698,3 +698,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
         uint256 idx = pos - 1;
         uint256 lastId = _inventoryIds[lastIndex - 1];
         _inventoryIds[idx] = lastId;
+        _inventoryPos[lastId] = idx + 1;
+        _inventoryIds.pop();
+        delete _inventoryPos[tokenId];
+    }
+
+    function _safeMint(address to, uint256 tokenId) private {
+        if (to == address(0)) revert DIV_TransferToZero();
+        if (_owners[tokenId] != address(0)) revert DIV_TokenAbsent(tokenId);
+        unchecked {
+            _balances[to]++;
+        }
+        _owners[tokenId] = to;
+        emit Transfer(address(0), to, tokenId);
+    }
+
+    function _burn(uint256 tokenId) private {
+        address owner = ownerOf(tokenId);
+        _tokenApprovals[tokenId] = address(0);
+        unchecked {
+            _balances[owner]--;
+        }
+        delete _owners[tokenId];
+        delete _tokenUris[tokenId];
+        emit Transfer(owner, address(0), tokenId);
+    }
+
+    function _transfer(address from, address to, uint256 tokenId, bool safe, bytes memory data) private {
+        if (to == address(0)) revert DIV_TransferToZero();
+        address owner = ownerOf(tokenId);
+        if (owner != from) revert DIV_NotOwnerNorApproved();
+        if (!_isAuthorized(owner, msg.sender, tokenId)) revert DIV_NotOwnerNorApproved();
+        _tokenApprovals[tokenId] = address(0);
+        unchecked {
+            _balances[owner]--;
+            _balances[to]++;
+        }
+        _owners[tokenId] = to;
+        emit Transfer(from, to, tokenId);
+        if (safe) {
+            _checkOnERC721Received(from, to, tokenId, data);
+        }
+    }
+
+    function _sanctifiedConvey(address from, address to, uint256 tokenId, bytes memory data) private {
+        if (to == address(0)) revert DIV_TransferToZero();
+        address owner = ownerOf(tokenId);
+        if (owner != from) revert DIV_NotOwnerNorApproved();
+        _tokenApprovals[tokenId] = address(0);
+        unchecked {
+            _balances[from]--;
