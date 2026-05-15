@@ -598,3 +598,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
         if (signer != seller) revert DIV_NotTokenOwner(tokenId, signer);
         if (msg.sender != buyer) revert DIV_BuyerMismatch(buyer, msg.sender);
         if (msg.value != priceWei) revert DIV_PriceMismatch(priceWei, msg.value);
+        uint256 feeBps = SANCTIFIED_FEE_BPS;
+        uint256 discount = _agentDiscountBps[msg.sender];
+        if (discount > feeBps) {
+            feeBps = 0;
+        } else {
+            feeBps -= discount;
+        }
+        uint256 fee = (priceWei * feeBps) / 10_000;
+        uint256 net = priceWei - fee;
+        unchecked {
+            orderNonce[seller]++;
+        }
+        _sanctifiedConvey(seller, buyer, tokenId, "");
+        if (fee > 0) {
+            AddressDivineLib.sendValue(payable(ADDRESS_B), fee);
+        }
+        AddressDivineLib.sendValue(payable(seller), net);
+        emit SanctifiedSale(tokenId, seller, buyer, priceWei, fee, keccak256(abi.encode(tokenId, buyer, deadline)));
+    }
+
+    function sanctifiedBuyWithData(
+        uint256 tokenId,
+        uint256 priceWei,
+        uint256 deadline,
+        address buyer,
+        bytes calldata hookData,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable nonReentrant whenNotPaused {
+        if (block.timestamp > deadline) revert DIV_OrderExpired(deadline, block.timestamp);
+        address seller = ownerOf(tokenId);
+        if (seller == buyer) revert DIV_BuyerMismatch(buyer, buyer);
+        uint256 nonce = orderNonce[seller];
+        bytes32 structHash = keccak256(abi.encode(ORDER_TYPEHASH, tokenId, priceWei, nonce, deadline, buyer));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
+        address signer = ECDSADivine.recover(digest, v, r, s);
+        if (signer != seller) revert DIV_NotTokenOwner(tokenId, signer);
+        if (msg.sender != buyer) revert DIV_BuyerMismatch(buyer, msg.sender);
+        if (msg.value != priceWei) revert DIV_PriceMismatch(priceWei, msg.value);
+        uint256 feeBps = SANCTIFIED_FEE_BPS;
+        uint256 discount = _agentDiscountBps[msg.sender];
+        if (discount > feeBps) {
+            feeBps = 0;
+        } else {
+            feeBps -= discount;
+        }
+        uint256 fee = (priceWei * feeBps) / 10_000;
+        uint256 net = priceWei - fee;
+        unchecked {
