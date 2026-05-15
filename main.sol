@@ -648,3 +648,53 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
         uint256 fee = (priceWei * feeBps) / 10_000;
         uint256 net = priceWei - fee;
         unchecked {
+            orderNonce[seller]++;
+        }
+        _sanctifiedConvey(seller, buyer, tokenId, hookData);
+        if (fee > 0) {
+            AddressDivineLib.sendValue(payable(ADDRESS_B), fee);
+        }
+        AddressDivineLib.sendValue(payable(seller), net);
+        emit SanctifiedSale(tokenId, seller, buyer, priceWei, fee, keccak256(abi.encode(tokenId, buyer, deadline)));
+    }
+
+    function withdrawOfferingBalance() external nonReentrant onlyADDRESS_A {
+        uint256 bal = address(this).balance;
+        if (bal == 0) return;
+        AddressDivineLib.sendValue(payable(ADDRESS_A), bal);
+        emit EthSwept(ADDRESS_A, bal);
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {
+        revert DIV_NoEthUnexpected();
+    }
+
+    function hashOrder(
+        uint256 tokenId,
+        uint256 priceWei,
+        uint256 nonce,
+        uint256 deadline,
+        address buyer
+    ) external view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(ORDER_TYPEHASH, tokenId, priceWei, nonce, deadline, buyer));
+        return keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
+    }
+
+    function _requireMinted(uint256 tokenId) internal view {
+        if (_owners[tokenId] == address(0)) revert DIV_TokenAbsent(tokenId);
+    }
+
+    function _pushInventory(uint256 tokenId) private {
+        _inventoryIds.push(tokenId);
+        _inventoryPos[tokenId] = _inventoryIds.length;
+    }
+
+    function _popInventory(uint256 tokenId) private {
+        uint256 pos = _inventoryPos[tokenId];
+        require(pos != 0, "DIV_INV_MISS");
+        uint256 lastIndex = _inventoryIds.length;
+        uint256 idx = pos - 1;
+        uint256 lastId = _inventoryIds[lastIndex - 1];
+        _inventoryIds[idx] = lastId;
