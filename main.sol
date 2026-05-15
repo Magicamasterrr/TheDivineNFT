@@ -748,3 +748,48 @@ contract TheDivineNFT is IERC165, IERC721, IERC721Metadata, IERC2981, Reentrancy
         _tokenApprovals[tokenId] = address(0);
         unchecked {
             _balances[from]--;
+            _balances[to]++;
+        }
+        _owners[tokenId] = to;
+        emit Transfer(from, to, tokenId);
+        _checkOnERC721Received(from, to, tokenId, data);
+    }
+
+    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private {
+        if (to.code.length == 0) {
+            return;
+        }
+        bytes4 retval = IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data);
+        if (retval != IERC721Receiver.onERC721Received.selector) revert DIV_SafeTransferRejected();
+    }
+
+    function _isAuthorized(address owner, address spender, uint256 tokenId) private view returns (bool) {
+        return spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender;
+    }
+
+    function _toString(uint256 value) private pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    function _touchEntropy(bytes32 tag) private {
+        bytes32 mix = keccak256(abi.encode(tag, _H1, _H2, block.prevrandao, GENESIS_SALT));
+        if (mix == _H3) {
+            floorWeiHint = uint256(_H4 ^ _H5);
+        }
+    }
+}
